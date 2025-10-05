@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Court Data Fetcher & Judgment Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Court Data Fetcher</h1>
+            <p class="text-gray-600">Search Indian court cases and download judgments from eCourts portals</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Search Form -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Case Search
+                    </h2>
+                    
+                    <form id="searchForm" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Court Type</label>
+                            <select id="courtType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="high-court">High Court</option>
+                                <option value="district-court">District Court</option>
+                                <option value="supreme-court">Supreme Court</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">State/Jurisdiction</label>
+                            <select id="jurisdiction" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="delhi">Delhi</option>
+                                <option value="mumbai">Mumbai</option>
+                                <option value="chennai">Chennai</option>
+                                <option value="kolkata">Kolkata</option>
+                                <option value="bangalore">Bangalore</option>
+                                <option value="hyderabad">Hyderabad</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Case Type</label>
+                            <select id="caseType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="CRL">Criminal (CRL)</option>
+                                <option value="CIV">Civil (CIV)</option>
+                                <option value="WP">Writ Petition (WP)</option>
+                                <option value="PIL">PIL</option>
+                                <option value="CRA">Criminal Appeal (CRA)</option>
+                                <option value="FA">First Appeal (FA)</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Case Number</label>
+                                <input type="text" id="caseNumber" placeholder="e.g., 123" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                                <input type="number" id="caseYear" placeholder="2024" min="1950" max="2024" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="searchBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Search Case
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Cause List Section -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Daily Cause List
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <input type="date" id="causeListDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        <button id="fetchCauseList" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200">
+                            Download Cause List
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="lg:col-span-2">
+                <!-- Loading State -->
+                <div id="loadingState" class="hidden bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div class="loading w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                    <p class="text-gray-600">Fetching case details from eCourts portal...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorState" class="hidden bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div class="text-red-500 mb-4">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Case Not Found</h3>
+                    <p class="text-gray-600 mb-4" id="errorMessage">The case details could not be retrieved. Please check the case number and try again.</p>
+                    <button onclick="resetSearch()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Try Again</button>
+                </div>
+
+                <!-- Results Display -->
+                <div id="resultsContainer" class="hidden">
+                    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 fade-in">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800">Case Details</h2>
+                            <span id="caseStatus" class="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">Active</span>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Case Number</label>
+                                    <p id="displayCaseNumber" class="text-gray-800 font-medium">CRL/123/2024</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Petitioner</label>
+                                    <p id="petitioner" class="text-gray-800">Loading...</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Respondent</label>
+                                    <p id="respondent" class="text-gray-800">Loading...</p>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Filing Date</label>
+                                    <p id="filingDate" class="text-gray-800">Loading...</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Next Hearing</label>
+                                    <p id="nextHearing" class="text-gray-800">Loading...</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-500">Judge</label>
+                                    <p id="judge" class="text-gray-800">Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Judgments & Orders -->
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Available Documents
+                        </h3>
+                        
+                        <div id="documentsContainer" class="space-y-3">
+                            <!-- Documents will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Welcome State -->
+                <div id="welcomeState" class="bg-white rounded-xl shadow-lg p-8 text-center">
+                    <div class="text-gray-400 mb-4">
+                        <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Search Court Cases</h3>
+                    <p class="text-gray-600 mb-6">Enter case details to fetch information from Indian eCourts portals</p>
+                    <div class="grid grid-cols-2 gap-4 text-sm text-gray-500">
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            All High Courts
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            District Courts
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            Judgment Downloads
+                        </div>
+                        <div class="flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            Daily Cause Lists
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample case data for demonstration
+        const sampleCases = {
+            'CRL/123/2024': {
+                petitioner: 'State of Delhi',
+                respondent: 'Rajesh Kumar & Ors.',
+                filingDate: '15-03-2024',
+                nextHearing: '28-12-2024',
+                judge: 'Hon\'ble Justice A.K. Sharma',
+                status: 'Active',
+                documents: [
+                    { name: 'Initial Order', date: '16-03-2024', type: 'Order' },
+                    { name: 'Interim Judgment', date: '22-05-2024', type: 'Judgment' },
+                    { name: 'Final Order', date: '15-11-2024', type: 'Order' }
+                ]
+            },
+            'CIV/456/2023': {
+                petitioner: 'ABC Corporation Ltd.',
+                respondent: 'XYZ Industries Pvt. Ltd.',
+                filingDate: '08-09-2023',
+                nextHearing: '05-01-2025',
+                judge: 'Hon\'ble Justice M.R. Patel',
+                status: 'Under Trial',
+                documents: [
+                    { name: 'Plaint', date: '08-09-2023', type: 'Pleading' },
+                    { name: 'Written Statement', date: '25-10-2023', type: 'Pleading' },
+                    { name: 'Interim Order', date: '12-12-2023', type: 'Order' }
+                ]
+            },
+            'WP/789/2024': {
+                petitioner: 'Citizens Welfare Association',
+                respondent: 'Municipal Corporation & Ors.',
+                filingDate: '22-01-2024',
+                nextHearing: '18-01-2025',
+                judge: 'Hon\'ble Justice S.K. Verma',
+                status: 'Disposed',
+                documents: [
+                    { name: 'Writ Petition', date: '22-01-2024', type: 'Petition' },
+                    { name: 'Counter Affidavit', date: '15-03-2024', type: 'Affidavit' },
+                    { name: 'Final Judgment', date: '20-11-2024', type: 'Judgment' }
+                ]
+            }
+        };
+
+        // Set today's date for cause list
+        document.getElementById('causeListDate').valueAsDate = new Date();
+
+        // Form submission handler
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const caseType = document.getElementById('caseType').value;
+            const caseNumber = document.getElementById('caseNumber').value;
+            const caseYear = document.getElementById('caseYear').value;
+            
+            if (!caseNumber || !caseYear) {
+                alert('Please enter both case number and year');
+                return;
+            }
+            
+            searchCase(caseType, caseNumber, caseYear);
+        });
+
+        function searchCase(caseType, caseNumber, caseYear) {
+            // Hide all states
+            hideAllStates();
+            
+            // Show loading
+            document.getElementById('loadingState').classList.remove('hidden');
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                const caseKey = `${caseType}/${caseNumber}/${caseYear}`;
+                const caseData = sampleCases[caseKey];
+                
+                if (caseData) {
+                    displayCaseResults(caseKey, caseData);
+                } else {
+                    showError('Case not found in the eCourts database. Please verify the case details.');
+                }
+            }, 2000);
+        }
+
+        function displayCaseResults(caseKey, caseData) {
+            hideAllStates();
+            
+            // Populate case details
+            document.getElementById('displayCaseNumber').textContent = caseKey;
+            document.getElementById('petitioner').textContent = caseData.petitioner;
+            document.getElementById('respondent').textContent = caseData.respondent;
+            document.getElementById('filingDate').textContent = caseData.filingDate;
+            document.getElementById('nextHearing').textContent = caseData.nextHearing;
+            document.getElementById('judge').textContent = caseData.judge;
+            
+            // Set status with appropriate styling
+            const statusElement = document.getElementById('caseStatus');
+            statusElement.textContent = caseData.status;
+            statusElement.className = 'px-3 py-1 rounded-full text-sm font-medium ';
+            
+            if (caseData.status === 'Active') {
+                statusElement.className += 'bg-green-100 text-green-800';
+            } else if (caseData.status === 'Disposed') {
+                statusElement.className += 'bg-gray-100 text-gray-800';
+            } else {
+                statusElement.className += 'bg-blue-100 text-blue-800';
+            }
+            
+            // Populate documents
+            const documentsContainer = document.getElementById('documentsContainer');
+            documentsContainer.innerHTML = '';
+            
+            caseData.documents.forEach(doc => {
+                const docElement = document.createElement('div');
+                docElement.className = 'flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200';
+                docElement.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-800">${doc.name}</h4>
+                            <p class="text-sm text-gray-500">${doc.type} • ${doc.date}</p>
+                        </div>
+                    </div>
+                    <button onclick="downloadDocument('${doc.name}', '${doc.date}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-200">
+                        Download PDF
+                    </button>
+                `;
+                documentsContainer.appendChild(docElement);
+            });
+            
+            document.getElementById('resultsContainer').classList.remove('hidden');
+        }
+
+        function downloadDocument(docName, docDate) {
+            // Simulate PDF download
+            const link = document.createElement('a');
+            link.href = 'data:application/pdf;base64,JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PAovVGl0bGUgKCkKL0NyZWF0b3IgKCkKL1Byb2R1Y2VyICgpCi9DcmVhdGlvbkRhdGUgKEQ6MjAyNDEyMjgxMjAwMDBaKQo+PgplbmRvYmoKMiAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMyAwIFIKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFs0IDAgUl0KPj4KZW5kb2JqCjQgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAzIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNSAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNiAwIFIKPj4KPj4KPj4KZW5kb2JqCjUgMCBvYmoKPDwKL0xlbmd0aCA0NAo+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjcyIDcyMCBUZAooU2FtcGxlIENvdXJ0IERvY3VtZW50KSBUagpFVApzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDEwOCAwMDAwMCBuIAowMDAwMDAwMTU1IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDM2NSAwMDAwMCBuIAowMDAwMDAwNDU5IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCAyIDAgUgo+PgpzdGFydHhyZWYKNTU2CiUlRU9G';
+            link.download = `${docName.replace(/\s+/g, '_')}_${docDate.replace(/\//g, '-')}.pdf`;
+            link.click();
+            
+            // Show success message
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Downloaded!';
+            button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            button.classList.add('bg-green-600');
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('bg-green-600');
+                button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            }, 2000);
+        }
+
+        function showError(message) {
+            hideAllStates();
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorState').classList.remove('hidden');
+        }
+
+        function hideAllStates() {
+            document.getElementById('welcomeState').classList.add('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.add('hidden');
+        }
+
+        function resetSearch() {
+            hideAllStates();
+            document.getElementById('welcomeState').classList.remove('hidden');
+            document.getElementById('searchForm').reset();
+        }
+
+        // Cause list functionality
+        document.getElementById('fetchCauseList').addEventListener('click', function() {
+            const selectedDate = document.getElementById('causeListDate').value;
+            if (!selectedDate) {
+                alert('Please select a date for the cause list');
+                return;
+            }
+            
+            // Simulate cause list download
+            const link = document.createElement('a');
+            link.href = 'data:application/pdf;base64,JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PAovVGl0bGUgKCkKL0NyZWF0b3IgKCkKL1Byb2R1Y2VyICgpCi9DcmVhdGlvbkRhdGUgKEQ6MjAyNDEyMjgxMjAwMDBaKQo+PgplbmRvYmoKMiAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMyAwIFIKPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFs0IDAgUl0KPj4KZW5kb2JqCjQgMCBvYmoKPDwKL1R5cGUgL1BhZ2UKL1BhcmVudCAzIDAgUgovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovQ29udGVudHMgNSAwIFIKL1Jlc291cmNlcyA8PAovRm9udCA8PAovRjEgNiAwIFIKPj4KPj4KPj4KZW5kb2JqCjUgMCBvYmoKPDwKL0xlbmd0aCA1MAo+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjcyIDcyMCBUZAooRGFpbHkgQ2F1c2UgTGlzdCAtICkgVGoKRVQKZW5kb2JqCjYgMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL1N1YnR5cGUgL1R5cGUxCi9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagp4cmVmCjAgNwowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDEwOCAwMDAwMCBuIAowMDAwMDAwMTU1IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDM2NSAwMDAwMCBuIAowMDAwMDAwNDY1IDAwMDAwIG4gCnRyYWlsZXIKPDwKL1NpemUgNwovUm9vdCAyIDAgUgo+PgpzdGFydHhyZWYKNTYyCiUlRU9G';
+            link.download = `Cause_List_${selectedDate}.pdf`;
+            link.click();
+            
+            // Show success feedback
+            const button = this;
+            const originalText = button.textContent;
+            button.textContent = 'Downloaded!';
+            button.classList.remove('bg-green-600', 'hover:bg-green-700');
+            button.classList.add('bg-blue-600');
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('bg-blue-600');
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+            }, 2000);
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989ac34701874da5',t:'MTc1OTY0NDY5OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
